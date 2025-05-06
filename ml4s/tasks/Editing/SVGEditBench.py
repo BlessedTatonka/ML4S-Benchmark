@@ -6,9 +6,11 @@ import logging
 import os
 import tempfile
 import subprocess
+import time
 from typing import Any, Dict, List, Optional, Tuple
 from collections import defaultdict
 import io
+from pathlib import Path
 
 import numpy as np
 from sklearn.metrics import mean_squared_error
@@ -98,6 +100,12 @@ class SVGEditBench(AbsTaskEditing):
         
         # Flag to skip calculation for empty responses
         self.skip_empty_responses = skip_empty_responses
+        
+        # Store dataset size before filtering
+        self.original_dataset_sizes = {}
+        
+        # Response cache file (set later)
+        self.response_cache_file = None
         
         # Initialize parent class
         super().__init__(seed=seed, **kwargs)
@@ -550,8 +558,15 @@ Modified SVG:
         # Initialize with only the essential metrics
         metrics = {}
         
-        # Record total samples
-        metrics["total_samples"] = len(responses)
+        # Use the original dataset size for total_samples, not the filtered sample count
+        current_split = getattr(self, "current_evaluation_split", "test")
+        total_dataset_size = self.original_dataset_sizes.get(current_split, len(responses))
+        
+        # Record total samples from the original dataset
+        metrics["total_samples"] = total_dataset_size
+        
+        # Record evaluated samples separately
+        metrics["evaluated_samples"] = len(responses)
         
         # Filter out invalid SVGs
         filtered_responses, filtered_ground_truths, filtered_queries, valid_indices = self._get_filtered_data(
@@ -574,9 +589,9 @@ Modified SVG:
         # Record rasterizable responses count
         metrics["rasterizable_responses"] = len(rasterizable_responses)
         
-        # Calculate confidence metrics based on rasterizable responses (only keep the main one)
+        # Calculate confidence metrics based on rasterizable responses relative to the original dataset size
         rasterizable_confidence_metrics = self._calculate_confidence_metrics(
-            len(rasterizable_responses), len(responses)
+            len(rasterizable_responses), total_dataset_size
         )
         metrics["confidence"] = rasterizable_confidence_metrics["confidence"]
         
@@ -741,6 +756,71 @@ Modified SVG:
             metrics["compression_mse"] = mse
         return metrics
     
+    def _setup_response_cache(self, model_name: str = "unknown", output_dir: str = "results"):
+        """Set up cache for storing model responses.
+        
+        Args:
+            model_name: Name of the model being evaluated
+            output_dir: Directory to store results
+        """
+        from ml4s.run import get_cache_file_path
+        
+        # Get cache file path
+        self.response_cache_file = get_cache_file_path(
+            task_name="SVGEditBench",
+            model_name=model_name,
+            output_dir=output_dir
+        )
+        
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(self.response_cache_file), exist_ok=True)
+    
+    def _save_response_to_jsonl(self, sample_id: str, query: str, response: str, model_name: str):
+        """Save model response to the JSONL file.
+        
+        Args:
+            sample_id: ID of the sample
+            query: The input query
+            response: Model's response
+            model_name: Name of the model
+        """
+        if not self.response_cache_file:
+            return
+            
+        # Prepare record
+        record = {
+            "sample_id": sample_id,
+            "query": query,
+            "response": response,
+            "model": model_name,
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S.%f"),
+            "retry_count": 0
+        }
+        
+        # Check if sample_id already exists in the file
+        existing_entries = {}
+        
+        # Read existing entries if file exists
+        if os.path.exists(self.response_cache_file):
+            try:
+                with open(self.response_cache_file, "r", encoding="utf-8") as f:
+                    for line in f:
+                        try:
+                            entry = json.loads(line.strip())
+                            if "sample_id" in entry:
+                                existing_entries[entry["sample_id"]] = True
+                        except json.JSONDecodeError:
+                            continue
+            except Exception as e:
+                logger.warning(f"Error reading response cache: {e}")
+        
+        # Only write if sample_id is not already in the file
+        if sample_id not in existing_entries:
+            with open(self.response_cache_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps(record) + "\n")
+        else:
+            logger.debug(f"Skipping duplicate response for sample_id: {sample_id}")
+
     def process_dataset_with_model(self, model, dataset, split, **kwargs):
         """Process the dataset with the model and calculate metrics.
         
@@ -755,8 +835,17 @@ Modified SVG:
         Returns:
             Dictionary with evaluation scores
         """
+        # Store the current split for reference in metrics calculation
+        self.current_evaluation_split = split
+        
         # Get dataset split
         data_split = dataset[split]
+        
+        # Get model name for caching responses
+        model_name = kwargs.get("model_name", getattr(model, "model_name", "unknown"))
+        
+        # Set up response cache
+        self._setup_response_cache(model_name=model_name)
         
         # Get input texts, targets, task types, and sample IDs
         queries, ground_truths, task_types, sample_ids = self._get_inputs_and_targets(data_split)
@@ -766,6 +855,10 @@ Modified SVG:
         
         # Pass through the global_progress_bar if provided
         responses = model.generate_text(queries, sample_ids=sample_ids, **kwargs)
+        
+        # Save responses to the JSONL file
+        for sample_id, query, response in zip(sample_ids, queries, responses):
+            self._save_response_to_jsonl(sample_id, query, response, model_name)
         
         # Calculate metrics with task types included
         logger.info("Calculating metrics")
@@ -803,4 +896,17 @@ Modified SVG:
             if "id" not in column_names:
                 logger.info(f"Adding 'id' column to dataset")
                 self.dataset[split] = self.dataset[split].add_column("id", 
-                                                                    [f"sample_{i}" for i in range(len(self.dataset[split]))]) 
+                                                                    [f"sample_{i}" for i in range(len(self.dataset[split]))])
+
+    def load_data(self, **kwargs):
+        """Load dataset from HuggingFace hub with custom handling for original size tracking."""
+        if self.data_loaded:
+            return
+        
+        # Call the parent implementation
+        super().load_data(**kwargs)
+        
+        # Store the original dataset sizes before any filtering
+        for split in self.dataset:
+            self.original_dataset_sizes[split] = len(self.dataset[split])
+            logger.info(f"Original dataset size for {split} split: {self.original_dataset_sizes[split]}") 

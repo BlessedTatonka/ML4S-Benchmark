@@ -36,6 +36,7 @@ logging.getLogger("tqdm").setLevel(logging.WARNING)
 # Task mapping
 TASKS = {
     "SVGEditBench": "ml4s.tasks.Editing.SVGEditBench",
+    "SGPBench": "ml4s.tasks.Understanding.SGPBench",
 }
 
 # Global flag for graceful shutdown
@@ -816,6 +817,11 @@ def process_dataset_with_model(model, dataset, split, task, **kwargs):
     # Get dataset split
     data_split = dataset[split]
     
+    # For SGPBench, call the task's evaluate method directly (requires 3 values)
+    if task.__class__.__name__ == "SGPBench":
+        logger.info(f"Using task-specific evaluation for SGPBench")
+        return task.evaluate(model, split, **kwargs)
+    
     # Get input texts and targets
     queries, ground_truths = task._get_inputs_and_targets(data_split)
     
@@ -946,7 +952,15 @@ def run_evaluation(args: argparse.Namespace) -> Dict[str, Any]:
     
     # Run evaluation
     logger.info(f"Running evaluation for task '{args.task}' with model '{args.model}'")
-    scores = process_dataset_with_model(model, task.dataset, args.split, task, **kwargs)
+    
+    # Use task-specific default split if available
+    split = args.split
+    if args.task == "SGPBench" and split == "test":
+        # Use the first available split for SGPBench
+        split = list(task.dataset.keys())[0]
+        logger.info(f"Using '{split}' split for SGPBench task instead of 'test'")
+    
+    scores = process_dataset_with_model(model, task.dataset, split, task, **kwargs)
     
     # Create metadata
     metadata = {

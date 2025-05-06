@@ -1,0 +1,34 @@
+{
+  "metadata": {
+    "task_name": "SVGEditBench",
+    "model_name": "qwen/qwen-2.5-7b-instruct",
+    "split": "test",
+    "timestamp": "2025-05-06T18:43:32.385494",
+    "model_params": {
+      "max_tokens": 16384,
+      "temperature": 0.0,
+      "batch_size": 5
+    },
+    "task_params": {
+      "penalize_non_rasterizable": false,
+      "skip_empty_responses": true
+    },
+    "test_mode": false,
+    "test_samples": null,
+    "max_samples": 5,
+    "response_cache_file": "results/qwen/qwen-2.5-7b-instruct/SVGEditBench/responses.jsonl",
+    "mock_mode": false
+  },
+  "scores": {
+    "total_samples": 5,
+    "valid_responses": 5,
+    "rasterizable_responses": 5,
+    "confidence": 1.0,
+    "mse": 0.05185747132710907,
+    "mse_CropToHalf": 0.10150101881913096,
+    "mse_Transparency": 0.003221558897100355,
+    "mse_UpSideDown": 0.0498422012030827,
+    "primary_metric": 0.051521592973104664,
+    "num_samples": 5
+  }
+}

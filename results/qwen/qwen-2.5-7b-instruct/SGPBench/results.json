@@ -1,0 +1,36 @@
+{
+  "metadata": {
+    "task_name": "SGPBench",
+    "model_name": "qwen/qwen-2.5-7b-instruct",
+    "split": "test",
+    "timestamp": "2025-05-06T19:00:58.267698",
+    "model_params": {
+      "max_tokens": 16384,
+      "temperature": 0.0,
+      "batch_size": 5
+    },
+    "task_params": {
+      "penalize_non_rasterizable": null,
+      "skip_empty_responses": null
+    },
+    "test_mode": false,
+    "test_samples": null,
+    "max_samples": 5,
+    "response_cache_file": "results/qwen/qwen-2.5-7b-instruct/SGPBench/responses.jsonl",
+    "mock_mode": false
+  },
+  "scores": {
+    "accuracy": 0.2,
+    "count_accuracy": 0.5,
+    "shape_accuracy": 0.0,
+    "color_accuracy": 0.0,
+    "semantics_accuracy": 0.0,
+    "total_samples": 4340,
+    "evaluated_samples": 5,
+    "valid_responses": 5,
+    "valid_response_rate": 1.0,
+    "confidence": 0.001152073732718894,
+    "primary_metric": 0.2,
+    "num_samples": 5
+  }
+}
