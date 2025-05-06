@@ -174,8 +174,6 @@ cython_debug/
 .pypirc
 
 # Benchmark specific files
-*.jsonl  # Cache files for responses
-results/*/*/responses.jsonl  # Model response caches
 datasets/  # Downloaded datasets
 
 # You can optionally include result.json files while excluding other files in the results directory
