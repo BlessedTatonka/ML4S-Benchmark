@@ -1,0 +1,37 @@
+{
+  "metadata": {
+    "task_name": "SVGEditBench",
+    "model_name": "meta-llama/llama-3.2-1b-instruct",
+    "split": "test",
+    "timestamp": "2025-05-06T15:57:22.717439",
+    "model_params": {
+      "max_tokens": 16384,
+      "temperature": 0.0,
+      "batch_size": 5
+    },
+    "task_params": {
+      "penalize_non_rasterizable": false,
+      "skip_empty_responses": true
+    },
+    "test_mode": false,
+    "test_samples": null,
+    "max_samples": 100,
+    "response_cache_file": "results/meta-llama/llama-3.2-1b-instruct/SVGEditBench/responses.jsonl",
+    "mock_mode": false
+  },
+  "scores": {
+    "total_samples": 100,
+    "valid_responses": 96,
+    "rasterizable_responses": 68,
+    "confidence": 0.566158306388781,
+    "mse": 0.21266707277191033,
+    "mse_CropToHalf": 0.24411639318843814,
+    "mse_Transparency": 0.14979458628777942,
+    "mse_UpSideDown": 0.3006882952672399,
+    "mse_SetContour": 0.20398717896517718,
+    "mse_Compression": 0.1527763143890378,
+    "mse_ChangeColor": 0.24578843779760093,
+    "primary_metric": 0.21619186764921225,
+    "num_samples": 100
+  }
+}
